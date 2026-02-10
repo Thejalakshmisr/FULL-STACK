@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import personsService from './services/persons';
+import Filter from './components/Filter';
+import PersonForm from './components/PersonForm';
+import Notification from './components/Notification';
+import ErrorNotification from './components/ErrorNotification';
 
 const App = () => {
   const [persons, setPersons] = useState([]);
@@ -7,12 +11,13 @@ const App = () => {
   const [newNumber, setNewNumber] = useState('');
   const [filter, setFilter] = useState('');
 
+  const [successMessage, setSuccessMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
+
   useEffect(() => {
-    personsService
-      .getAll()
-      .then(response => {
-        setPersons(response.data);
-      });
+    personsService.getAll().then(response => {
+      setPersons(response.data);
+    });
   }, []);
 
   const handleAddPerson = (event) => {
@@ -30,6 +35,17 @@ const App = () => {
             setPersons(persons.map(p => p.id === existingPerson.id ? response.data : p));
             setNewName('');
             setNewNumber('');
+
+            setSuccessMessage(`Updated ${response.data.name}`);
+            setTimeout(() => setSuccessMessage(null), 3000);
+          })
+          .catch(error => {
+            setErrorMessage(
+              `Information of ${existingPerson.name} has already been removed from server`
+            );
+            setTimeout(() => setErrorMessage(null), 3000);
+
+            setPersons(persons.filter(p => p.id !== existingPerson.id));
           });
       }
       return;
@@ -46,6 +62,9 @@ const App = () => {
         setPersons(persons.concat(response.data));
         setNewName('');
         setNewNumber('');
+
+        setSuccessMessage(`Added ${response.data.name}`);
+        setTimeout(() => setSuccessMessage(null), 3000);
       });
   };
 
@@ -67,30 +86,28 @@ const App = () => {
     <div>
       <h2>Phonebook</h2>
 
-      <div>
-        filter shown with{' '}
-        <input value={filter} onChange={(e) => setFilter(e.target.value)} />
-      </div>
+      <Notification message={successMessage} />
+      <ErrorNotification message={errorMessage} />
+
+      <Filter filter={filter} setFilter={setFilter} />
 
       <h3>Add a new</h3>
-      <form onSubmit={handleAddPerson}>
-        <div>
-          name: <input value={newName} onChange={(e) => setNewName(e.target.value)} />
-        </div>
-        <div>
-          number: <input value={newNumber} onChange={(e) => setNewNumber(e.target.value)} />
-        </div>
-        <div>
-          <button type="submit">add</button>
-        </div>
-      </form>
+      <PersonForm
+        handleAddPerson={handleAddPerson}
+        newName={newName}
+        setNewName={setNewName}
+        newNumber={newNumber}
+        setNewNumber={setNewNumber}
+      />
 
       <h3>Numbers</h3>
       <ul>
         {personsToShow.map(person => (
           <li key={person.id}>
-            {person.name} {person.number}{' '}
-            <button onClick={() => handleDelete(person.id, person.name)}>delete</button>
+            {person.name} {person.number}
+            <button onClick={() => handleDelete(person.id, person.name)}>
+              delete
+            </button>
           </li>
         ))}
       </ul>

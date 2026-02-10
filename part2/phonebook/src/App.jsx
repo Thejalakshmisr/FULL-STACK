@@ -1,82 +1,101 @@
-import { useState, useEffect } from "react"
-import axios from "axios"
+import React, { useState, useEffect } from 'react';
+import personsService from './services/persons';
 
 const App = () => {
-  const [persons, setPersons] = useState([])
-  const [newName, setNewName] = useState("")
-  const [newNumber, setNewNumber] = useState("")
-  const [filter, setFilter] = useState("")
+  const [persons, setPersons] = useState([]);
+  const [newName, setNewName] = useState('');
+  const [newNumber, setNewNumber] = useState('');
+  const [filter, setFilter] = useState('');
 
   useEffect(() => {
-    axios.get("http://localhost:3001/persons")
+    personsService
+      .getAll()
       .then(response => {
-        setPersons(response.data)
-      })
-  }, [])
+        setPersons(response.data);
+      });
+  }, []);
 
-  const addPerson = (event) => {
-    event.preventDefault()
+  const handleAddPerson = (event) => {
+    event.preventDefault();
+
+    const existingPerson = persons.find(p => p.name === newName);
+
+    if (existingPerson) {
+      if (window.confirm(`${newName} is already added. Replace the old number with a new one?`)) {
+        const updatedPerson = { ...existingPerson, number: newNumber };
+
+        personsService
+          .update(existingPerson.id, updatedPerson)
+          .then(response => {
+            setPersons(persons.map(p => p.id === existingPerson.id ? response.data : p));
+            setNewName('');
+            setNewNumber('');
+          });
+      }
+      return;
+    }
 
     const personObject = {
       name: newName,
       number: newNumber,
-      id: persons.length + 1
+    };
+
+    personsService
+      .create(personObject)
+      .then(response => {
+        setPersons(persons.concat(response.data));
+        setNewName('');
+        setNewNumber('');
+      });
+  };
+
+  const handleDelete = (id, name) => {
+    if (window.confirm(`Delete ${name}?`)) {
+      personsService
+        .remove(id)
+        .then(() => {
+          setPersons(persons.filter(p => p.id !== id));
+        });
     }
+  };
 
-    setPersons(persons.concat(personObject))
-    setNewName("")
-    setNewNumber("")
-  }
-
-  const handleNameChange = (event) => {
-    setNewName(event.target.value)
-  }
-
-  const handleNumberChange = (event) => {
-    setNewNumber(event.target.value)
-  }
-
-  const handleFilterChange = (event) => {
-    setFilter(event.target.value)
-  }
-
-  const personsToShow =
-    filter === ""
-      ? persons
-      : persons.filter(person =>
-          person.name.toLowerCase().includes(filter.toLowerCase())
-        )
+  const personsToShow = filter
+    ? persons.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()))
+    : persons;
 
   return (
     <div>
       <h2>Phonebook</h2>
 
       <div>
-        filter shown with:{" "}
-        <input value={filter} onChange={handleFilterChange} />
+        filter shown with{' '}
+        <input value={filter} onChange={(e) => setFilter(e.target.value)} />
       </div>
 
-      <h2>Add a new</h2>
-      <form onSubmit={addPerson}>
+      <h3>Add a new</h3>
+      <form onSubmit={handleAddPerson}>
         <div>
-          name: <input value={newName} onChange={handleNameChange} />
+          name: <input value={newName} onChange={(e) => setNewName(e.target.value)} />
         </div>
         <div>
-          number: <input value={newNumber} onChange={handleNumberChange} />
+          number: <input value={newNumber} onChange={(e) => setNewNumber(e.target.value)} />
         </div>
         <div>
           <button type="submit">add</button>
         </div>
       </form>
 
-      <h2>Numbers</h2>
-      {personsToShow.map(person => (
-        <div key={person.id}>
-          {person.name} {person.number}
-        </div>
-      ))}
+      <h3>Numbers</h3>
+      <ul>
+        {personsToShow.map(person => (
+          <li key={person.id}>
+            {person.name} {person.number}{' '}
+            <button onClick={() => handleDelete(person.id, person.name)}>delete</button>
+          </li>
+        ))}
+      </ul>
     </div>
-  )
-}
+  );
+};
 
-export default App
+export default App;

@@ -1,18 +1,19 @@
 .success {
   color: green;
-  background: #ccffcc;
+  background: lightgrey;
   border: 2px solid green;
+  border-radius: 5px;
   padding: 10px;
-  margin: 10px 0;
+  margin-bottom: 10px;
   font-size: 18px;
 }
 
 .error {
   color: red;
-  background: #ffcccc;
+  background: lightgrey;
   border: 2px solid red;
+  border-radius: 5px;
   padding: 10px;
-  margin: 10px 0;
+  margin-bottom: 10px;
   font-size: 18px;
 }
-

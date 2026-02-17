@@ -1,102 +1,122 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react"
+import countriesService from "./services/countries"
+import axios from "axios"
 
-function App() {
+const App = () => {
   const [countries, setCountries] = useState([])
-  const [query, setQuery] = useState('')
-  const [selectedCountry, setSelectedCountry] = useState(null)
-  const [weather, setWeather] = useState(null)
+  const [filter, setFilter] = useState("")
+  const [selected, setSelected] = useState(null)
 
-  // Fetch all countries when query changes
+  // Fetch all countries
   useEffect(() => {
-    if (!query) return
+    countriesService.getAll().then(data => {
+      setCountries(data)
+    })
+  }, [])
 
-    fetch('https://studies.cs.helsinki.fi/restcountries/api/all')
-      .then(res => res.json())
-      .then(data => {
-        const matches = data.filter(c =>
-          c.name.common.toLowerCase().includes(query.toLowerCase())
-        )
-        setCountries(matches)
-        if (matches.length === 1) setSelectedCountry(matches[0])
-        else setSelectedCountry(null)
-      })
-  }, [query])
-
-  // Fetch weather when a country is selected
-  useEffect(() => {
-    if (!selectedCountry) return
-    const api_key = import.meta.env.VITE_SOME_KEY
-    if (!api_key) return
-
-    const capital = selectedCountry.capital
-    fetch(
-      `https://api.openweathermap.org/data/2.5/weather?q=${capital}&units=metric&appid=${api_key}`
-    )
-      .then(res => res.json())
-      .then(data => setWeather(data))
-      .catch(err => console.log('Weather fetch error:', err))
-  }, [selectedCountry])
+  // Filtered list
+  const filtered = countries.filter(country =>
+    country.name.common.toLowerCase().includes(filter.toLowerCase())
+  )
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Countries App</h1>
-      <div>
-        Find countries:{' '}
-        <input
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Type country name"
-        />
-      </div>
+    <div>
+      <h1>Find Countries</h1>
 
-      {/* Too many matches */}
-      {countries.length > 10 && (
-        <p style={{ color: 'red' }}>Too many matches, specify another filter.</p>
+      <input
+        value={filter}
+        onChange={(e) => {
+          setFilter(e.target.value)
+          setSelected(null) // Reset selected when typing
+        }}
+      />
+
+      {filter && filtered.length > 10 && (
+        <p>Too many matches, specify another filter.</p>
       )}
 
-      {/* List of countries with "show" buttons */}
-      {countries.length <= 10 && countries.length > 1 && (
+      {filtered.length > 1 && filtered.length <= 10 && (
         <ul>
-          {countries.map(c => (
+          {filtered.map(c => (
             <li key={c.name.common}>
-              {c.name.common}{' '}
-              <button onClick={() => setSelectedCountry(c)}>show</button>
+              {c.name.common}
+              <button onClick={() => setSelected(c)}>show</button>
             </li>
           ))}
         </ul>
       )}
 
-      {/* Detailed country view */}
-      {selectedCountry && (
-        <div style={{ marginTop: '20px' }}>
-          <h2>{selectedCountry.name.common}</h2>
-          <p>Capital: {selectedCountry.capital}</p>
-          <p>Area: {selectedCountry.area} km²</p>
-          <p>
-            Languages:{' '}
-            {selectedCountry.languages
-              ? Object.values(selectedCountry.languages).join(', ')
-              : 'N/A'}
-          </p>
+      {filtered.length === 1 && (
+        <CountryDetail country={filtered[0]} />
+      )}
+
+      {selected && (
+        <CountryDetail country={selected} />
+      )}
+    </div>
+  )
+}
+
+// ------------------------
+// COUNTRY DETAIL COMPONENT
+// ------------------------
+
+const CountryDetail = ({ country }) => {
+  const [weather, setWeather] = useState(null)
+
+  const api_key = import.meta.env.VITE_WEATHER_KEY
+  const capital = country.capital?.[0] || "Unknown"
+
+  // Fetch weather when country changes
+  useEffect(() => {
+    if (!capital || !api_key) return
+
+    axios
+      .get(
+        `https://api.openweathermap.org/data/2.5/weather?q=${capital}&units=metric&appid=${api_key}`
+      )
+      .then((response) => {
+        setWeather(response.data)
+      })
+      .catch(() => {
+        console.error("Weather fetch failed")
+      })
+  }, [capital, api_key])
+
+  return (
+    <div>
+      <h2>{country.name.common}</h2>
+
+      <p><b>Capital:</b> {capital}</p>
+      <p><b>Area:</b> {country.area}</p>
+
+      <h3>Languages</h3>
+      <ul>
+        {Object.values(country.languages || {}).map(lang => (
+          <li key={lang}>{lang}</li>
+        ))}
+      </ul>
+
+      <img 
+        src={country.flags.png}
+        alt="flag"
+        width="150"
+      />
+
+      <h3>Weather in {capital}</h3>
+
+      {!weather && <p>Loading weather...</p>}
+
+      {weather && (
+        <div>
+          <p><b>Temperature:</b> {weather.main.temp} °C</p>
+
           <img
-            src={selectedCountry.flags.png}
-            alt="flag"
-            width="150"
-            style={{ border: '1px solid black' }}
+            src={`https://openweathermap.org/img/wn/${weather.weather?.[0]?.icon}@2x.png`}
+            alt="weather icon"
           />
 
-          {/* Weather info */}
-          {weather && weather.main && (
-            <div style={{ marginTop: '10px' }}>
-              <h3>Weather in {selectedCountry.capital}</h3>
-              <p>Temperature: {weather.main.temp}°C</p>
-              <p>Wind: {weather.wind.speed} m/s</p>
-              <img
-                src={`http://openweathermap.org/img/wn/${weather.weather[0].icon}@2x.png`}
-                alt="weather icon"
-              />
-            </div>
-          )}
+          <p><b>Wind:</b> {weather.wind.speed} m/s</p>
         </div>
       )}
     </div>

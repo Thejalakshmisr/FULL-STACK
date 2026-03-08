@@ -1,32 +1,41 @@
-require('dotenv').config()  // ← MUST be first line
 const mongoose = require('mongoose')
 
-// connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.log('Error connecting:', err))
+const password = process.argv[2]
 
-// schema
+const url =
+`mongodb+srv://yourusername:${password}@cluster0.xxxxx.mongodb.net/phonebookApp?retryWrites=true&w=majority`
+
+mongoose.set('strictQuery', false)
+mongoose.connect(url)
+
 const personSchema = new mongoose.Schema({
   name: String,
-  number: String
+  number: String,
 })
+
 const Person = mongoose.model('Person', personSchema)
 
-// data to insert
-const data = [
-  { name: "Alice", number: "123-456" },
-  { name: "Bob", number: "987-654" },
-  { name: "Charlie", number: "555-555" }
-]
+if (process.argv.length === 3) {
+  console.log('phonebook:')
 
-// insert data
-Person.insertMany(data)
-  .then(() => {
-    console.log('Data added!')
+  Person.find({}).then(result => {
+    result.forEach(person => {
+      console.log(`${person.name} ${person.number}`)
+    })
     mongoose.connection.close()
   })
-  .catch(err => {
-    console.log('Error:', err)
+} else {
+
+  const name = process.argv[3]
+  const number = process.argv[4]
+
+  const person = new Person({
+    name: name,
+    number: number,
+  })
+
+  person.save().then(() => {
+    console.log(`added ${name} number ${number} to phonebook`)
     mongoose.connection.close()
   })
+}

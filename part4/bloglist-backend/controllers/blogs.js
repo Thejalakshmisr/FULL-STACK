@@ -1,72 +1,62 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
-const User = require('../models/user')
-const middleware = require('../utils/middleware')
 
-
-
-
-blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
-  const { title, author, url, likes } = request.body
-  const user = request.user
-
-  if (!user) {
-    return response.status(401).json({ error: 'token missing or invalid' })
-  }
-
-  if (!title || !url) {
-    return response.status(400).json({ error: 'title or url missing' })
-  }
-
-  const blog = new Blog({
-    title,
-    author,
-    url,
-    likes: likes || 0,
-    user: user._id,
-  })
-
-  const savedBlog = await blog.save()
-  user.blogs = user.blogs.concat(savedBlog._id)
-  await user.save()
-
-  response.status(201).json(savedBlog)
-})
-
-
+// GET all blogs
 blogsRouter.get('/', async (request, response) => {
-  const blogs = await Blog
-    .find({})
-    .populate('user', { username: 1, name: 1 })
-
+  const blogs = await Blog.find({})
   response.json(blogs)
 })
 
-
-blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) => {
+// GET single blog
+blogsRouter.get('/:id', async (request, response) => {
   const blog = await Blog.findById(request.params.id)
-  if (!blog) return response.status(404).end()
 
-  if (!request.user || blog.user.toString() !== request.user._id.toString()) {
-    return response.status(401).json({ error: 'only creator can delete blog' })
+  if (blog) {
+    response.json(blog)
+  } else {
+    response.status(404).end()
   }
+})
 
+// CREATE new blog
+blogsRouter.post('/', async (request, response) => {
+  const body = request.body
+
+  const blog = new Blog({
+    title: body.title,
+    author: body.author,
+    url: body.url,
+    likes: body.likes || 0
+  })
+
+  const savedBlog = await blog.save()
+  response.status(201).json(savedBlog)
+})
+
+// DELETE blog
+blogsRouter.delete('/:id', async (request, response) => {
   await Blog.findByIdAndDelete(request.params.id)
   response.status(204).end()
 })
 
+// UPDATE blog
 blogsRouter.put('/:id', async (request, response) => {
-  const { title, author, url, likes } = request.body
+  const body = request.body
+
+  const blog = {
+    title: body.title,
+    author: body.author,
+    url: body.url,
+    likes: body.likes
+  }
 
   const updatedBlog = await Blog.findByIdAndUpdate(
     request.params.id,
-    { title, author, url, likes },
-    { new: true, runValidators: true }
+    blog,
+    { new: true }
   )
 
   response.json(updatedBlog)
 })
-
-
 
 module.exports = blogsRouter
